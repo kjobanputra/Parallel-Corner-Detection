@@ -85,8 +85,6 @@ int main() {
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
   cornerHarris(harris);
   Mat harrisNorm, harrisNormScaled;
-  normalize(harris, harrisNorm, 0, 255, NORM_MINMAX, CV_32FC1);
-  convertScaleAbs(harrisNorm, harrisNormScaled);
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
