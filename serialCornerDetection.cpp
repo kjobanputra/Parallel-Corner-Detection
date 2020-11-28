@@ -35,7 +35,7 @@ float partialX(int i, int j) {
   float gxVal;
   float partialXVal = 0;
   for (int l = i-1; l <= i+1; l++) {
-    for (int m = j-1; m <= j+1; j++) {
+    for (int m = j-1; m <= j+1; m++) {
       gxVal = gx[l-(i-1)][m-(j-1)];
       partialXVal += gxVal * gaussianConvolvedMatrix.at<float>(l,m);
     }
@@ -48,7 +48,7 @@ float partialY(int i, int j) {
   float gyVal;
   float partialYVal = 0;
   for (int l = i-1; l <= i+1; l++) {
-    for (int m = j-1; m <= j+1; j++) {
+    for (int m = j-1; m <= j+1; m++) {
       gyVal = gy[l-(i-1)][m-(j-1)];
       partialYVal += gyVal * gaussianConvolvedMatrix.at<float>(l,m);
     }
@@ -91,7 +91,7 @@ void gaussianConvolution(Mat &output) {
           convolvedVal += paddedSrcGray.at<float>(l, m) * gaussianVal;
         }
       }
-      output.at<float>(i,j) = convolvedVal;
+      output.at<float>(i-1,j-1) = convolvedVal;
     }
   }
 }
@@ -167,9 +167,9 @@ int main(int argc, char **argv) {
     }
   }
 
-  //namedWindow(window);
-  //imshow(window, src);
-  //waitKey();
-  imwrite("output/callibration.jpg", src);
+  namedWindow(window);
+  imshow(window, src);
+  waitKey();
+  //imwrite("output/callibration.jpg", src);
   return 0;
 }
