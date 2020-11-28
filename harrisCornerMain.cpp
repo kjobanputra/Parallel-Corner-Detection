@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "CycleTimer.h"
 #include "config.h"
 
 #define ARG_IMG 1
@@ -63,12 +64,17 @@ int main(int argc, char **argv) {
 
     // harrisCornerDetector(img_buf, output_buf, img.rows, img.cols);
 
+    double kernelStartTime = CycleTimer::currentSeconds();
     harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
+    double kernelEndTime = CycleTimer::currentSeconds();
     
     delete[] img_buf;
 
     //output_sobel_response(out_path, output_buf, img.rows, img.cols);
     output_cornerness_response(out_path, output_buf, img.rows, img.cols);
     delete[] output_buf;
+
+    double overall_duration = kernelEndTime - kernelStartTime;
+    printf("Overall: %.3f ms\n", 1000.f * overall_duration);
     return 0;
 }

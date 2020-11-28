@@ -111,6 +111,7 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     const int grad_image_height = height + 2 * (padding - GRAD_PADDING_SIZE);
     const int grad_image_size = sizeof(float) * grad_image_height * grad_image_width;
     const int output_image_size = sizeof(float) * height * width;
+    double mem_start_time1 = CycleTimer::currentSeconds();
     cudaMalloc(&device_input, input_image_size);
     cudaMalloc(&device_x_grad, grad_image_size);
     cudaMalloc(&device_y_grad, grad_image_size);
@@ -118,22 +119,30 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
 
     // Copy input arrays to the GPU
     cudaMemcpy(device_input, pinput, input_image_size, cudaMemcpyHostToDevice);
+    double mem_end_time1 = CycleTimer::currentSeconds();
 
     const dim3 grid (dceil(width, BLOCK_WIDTH), dceil(height, BLOCK_HEIGHT));
     const dim3 threadBlock (BLOCK_WIDTH, BLOCK_HEIGHT);
+    double kernel_start_time = CycleTimer::currentSeconds();
     sobel_x_kernel<<<grid, threadBlock>>>(device_input, device_x_grad, grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
     sobel_y_kernel<<<grid, threadBlock>>>(device_input, device_y_grad, grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
     cudaDeviceSynchronize();
     cornerness_kernel<<<grid, threadBlock>>>(device_x_grad, device_y_grad, device_output, height, width);
     cudaDeviceSynchronize();
+    double kernel_end_time = CycleTimer::currentSeconds();
 
     // Copy result to CPU
+    double mem_start_time2 = CycleTimer::currentSeconds();
     cudaMemcpy(output, device_output, output_image_size, cudaMemcpyDeviceToHost);
 
     cudaFree(device_x_grad);
     cudaFree(device_y_grad);
     cudaFree(device_input);
     cudaFree(device_output);
+    double mem_end_time2 = CycleTimer::currentSeconds();
+
+    printf("Kernel: %.3f ms\n", 1000.f * (kernel_end_time - kernel_start_time));
+    printf("Memory: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
 }
 
 void init_cuda() {
