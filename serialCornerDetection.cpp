@@ -2,6 +2,8 @@
 #include "opencv2/imgproc.hpp"
 #include <iostream>
 
+#define ARG_IMG 1
+
 using namespace cv;
 using namespace std;
 Mat src, src_gray;
@@ -72,16 +74,22 @@ void cornerHarris(Mat harris) {
   }
 }
 
-int main() {
-  src = imread("../castle.jpeg");
+int main(int argc, char **argv) {
+    if(argc < 2) {
+        printf("Usage: ./harrisCorner image_path\n");
+        exit(-1);
+    }
 
-  if (src.empty())
-  {
-    cout << "Image not found\n" << endl;
-    return -1;
-  }
+    const char *img_path = argv[ARG_IMG];
+    Mat src = imread(img_path);
+    cvtColor(src, src_gray, COLOR_BGR2GRAY);
 
-  cvtColor(src, src_gray, COLOR_BGR2GRAY);
+    if(src_gray.empty()) {
+        printf("Image %s not found\n", img_path);
+        exit(-1);
+    }
+
+  //cvtColor(src, src_gray, COLOR_BGR2GRAY);
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
   cornerHarris(harris);
   Mat harrisNorm, harrisNormScaled;
@@ -94,8 +102,9 @@ int main() {
     }
   }
 
-  const char* window = "window";
-  namedWindow(window);
-  imshow(window, harris);
+  //const char* window = "window";
+  //namedWindow(window);
+  //imshow(window, harris);
+  imwrite("output/callibration.jpg", harris);
   return 0;
 }
