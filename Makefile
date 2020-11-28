@@ -1,10 +1,10 @@
 EXECUTABLE := harrisCorner serialHarrisCorner
-LDFLAGS=-L/opt/cuda/lib64/ -lcudart
+LDFLAGS=-L/opt/cuda/lib64/ -L/usr/local/cuda/lib64 -lcudart
 CU_FILES   := harrisCorner.cu
 CU_DEPS    :=
 CC_FILES   := serialCornerDetection.cpp
 LOGS	   := logs
-INCL 	   := -I/usr/include/opencv4/ -I/opt/cuda/include
+INCL 	   := -I/usr/include/opencv4/ -I/opt/cuda/include -I/usr/local/cuda/include
 
 all: $(EXECUTABLE)
 
@@ -12,7 +12,7 @@ all: $(EXECUTABLE)
 
 ARCH=$(shell uname | sed -e 's/-.*//g')
 OBJDIR=objs
-CXX=g++ -m64
+CXX=g++
 CXXFLAGS=-O3 -Wall -g
 HOSTNAME=$(shell hostname)
 
