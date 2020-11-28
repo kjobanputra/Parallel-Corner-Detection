@@ -75,7 +75,7 @@ void sobel_y_kernel(float *image, float *output, int height, int width, int phei
 
 __global__
 void cornerness_kernel(float *x_grad, float *y_grad, float *output, int height, int width) {
-    const uint padding = WINDOW_PADDING_SIZE;
+    const int padding = WINDOW_PADDING_SIZE;
     const uint pixelY = blockIdx.y * blockDim.y + threadIdx.y;
     const uint pixelX = blockIdx.x * blockDim.x + threadIdx.x;
     const uint ppixelY = pixelY + padding;
@@ -91,7 +91,6 @@ void cornerness_kernel(float *x_grad, float *y_grad, float *output, int height, 
                 gxy += x_grad[pos] * y_grad[pos];
             }
         }
-
         const float det = gxx * gyy - gxy * gxy;
         const float trace = gxx + gyy;
         output[pixelY * width + pixelX] = det - K * trace * trace;

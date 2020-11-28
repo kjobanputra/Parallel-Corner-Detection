@@ -26,10 +26,9 @@ void output_sobel_response(const char *file_path, float *buf, int height, int wi
 
 void output_cornerness_response(const char *file_path, float *buf, int height, int width) {
     Mat output(height, width, CV_32FC1, buf, Mat::AUTO_STEP);
-    for(int i = 0; i < width * height; i++) {
-        printf("%f, ", buf[i]);
-    }
-    printf("\n");
+    normalize(output, output, 0x00, 0xFF, NORM_MINMAX, CV_8UC1);
+
+    imwrite(file_path, output);
 }
 
 int main(int argc, char **argv) {
