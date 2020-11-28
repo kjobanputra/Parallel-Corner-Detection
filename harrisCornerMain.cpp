@@ -12,13 +12,29 @@ using namespace cv;
 using namespace std;
 
 void harrisCornerDetector(unsigned char *input, unsigned char *output, int height, int width);
-void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width, int pheight, int pwidth);
+void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width);
 void printCudaInfo();
 
+void output_sobel_response(const char *file_path, float *buf, int height, int width) {
+    Mat output(height, width, CV_32FC1, buf, Mat::AUTO_STEP);
+    // Take absolute value and normalize
+    output = abs(output);
+    normalize(output, output, 0x00, 0xFF, NORM_MINMAX, CV_8UC1);
+
+    imwrite(file_path, output);
+}
+
+void output_cornerness_response(const char *file_path, float *buf, int height, int width) {
+    Mat output(height, width, CV_32FC1, buf, Mat::AUTO_STEP);
+    for(int i = 0; i < width * height; i++) {
+        printf("%f, ", buf[i]);
+    }
+    printf("\n");
+}
 
 int main(int argc, char **argv) {
-    if(argc < 2) {
-        printf("Usage: ./harrisCorner image_path\n");
+    if(argc < 3) {
+        printf("Usage: ./harrisCorner image_path output_path\n");
         exit(-1);
     }
 
@@ -31,32 +47,29 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
-    img.convertTo(img, CV_32FC1, 1.0/255.0);
+    img.convertTo(img, CV_32FC1, 1.0/255.0, 0);
 
     printCudaInfo();
-    printf("Image type %i\n", img.type());
-    printf("CV_32FC1: %i\n", CV_32FC1);
-    printf("CV_8UC1: %i\n", CV_8UC1);
     printf("Size: %i, %i\n", img.rows, img.cols);
 
     // Pad image according to the gradient and detection window sizes
     Mat img_padded;
-    const int border_size = 1;
+    const int border_size = TOTAL_PADDING_SIZE;
     printf("Padding size: %i\n", border_size);
     copyMakeBorder(img, img_padded, border_size, border_size, border_size, border_size, BORDER_REPLICATE);
 
     float *img_buf = new float[img_padded.rows * img_padded.cols];
     float *output_buf = new float[img.rows * img.cols];
-    memcpy(img_buf, img_padded.data, sizeof(unsigned char) * img_padded.rows * img_padded.cols);
+    memcpy(img_buf, img_padded.data, sizeof(float) * img_padded.rows * img_padded.cols);
 
     // harrisCornerDetector(img_buf, output_buf, img.rows, img.cols);
 
-    harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols, 1, 1);
+    harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
     
     delete[] img_buf;
 
-    Mat output(img.rows, img.cols, CV_32FC1, output_buf);
-
-    imwrite(out_path, output);
+    //output_sobel_response(out_path, output_buf, img.rows, img.cols);
+    output_cornerness_response(out_path, output_buf, img.rows, img.cols);
+    delete[] output_buf;
     return 0;
 }
