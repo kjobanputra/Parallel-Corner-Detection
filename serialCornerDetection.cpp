@@ -2,6 +2,8 @@
 #include "opencv2/imgproc.hpp"
 #include <iostream>
 
+#include "CycleTimer.h"
+
 #define ARG_IMG 1
 
 using namespace cv;
@@ -157,7 +159,9 @@ int main(int argc, char **argv) {
   copyMakeBorder(srcGray, paddedSrcGray, 2, 2, 2, 2, BORDER_REPLICATE);
 
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
+  double startTime = CycleTimer::currentSeconds();
   cornerHarris(harris);
+  double endTime = CycleTimer::currentSeconds();
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
@@ -171,5 +175,6 @@ int main(int argc, char **argv) {
   //imshow(window, src);
   //waitKey();
   imwrite("output/callibration.jpg", src);
+  cout << "Serial: " << endTime - startTime << endl;
   return 0;
 }
