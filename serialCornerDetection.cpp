@@ -10,9 +10,9 @@
 #define ARG_IMG 1
 #define ARG_OUT 2
 
+//TODO: potential seg fault in code
 using namespace cv;
 using namespace std;
-const char* window = "window";
 Mat srcGray, paddedSrcGray, gaussianConvolvedMatrix;
 
 const float gaussianKernel[3][3] = {
@@ -178,9 +178,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  //namedWindow(window);
-  //imshow(window, src);
-  //waitKey();
   imwrite(out_path, src);
   cout << "Serial: " << duration.count() << endl;
   return 0;
