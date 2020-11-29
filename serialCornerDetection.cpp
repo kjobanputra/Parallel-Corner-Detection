@@ -2,12 +2,14 @@
 #include "opencv2/imgproc.hpp"
 #include <iostream>
 
+#include "CycleTimer.h"
+
 #define ARG_IMG 1
 
 using namespace cv;
 using namespace std;
 const char* window = "window";
-Mat src_gray;
+Mat srcGray, paddedSrcGray, gaussianConvolvedMatrix;
 
 const float gaussianKernel[3][3] = {
     {(1.0 / 16), (1.0 / 8), (1.0 / 16)},
@@ -15,28 +17,52 @@ const float gaussianKernel[3][3] = {
     {(1.0 / 16), (1.0 / 8), (1.0 / 16)}
 };
 
+const float gx[3][3] = {
+    {-1, 0, 1},
+    {-2, 0, 2},
+    {-1, 0, 1}
+};
+
+const float gy[3][3] = {
+    {1, 2, 1},
+    {0, 0, 0},
+    {-1, -2, -1}
+};
+
 const float k = 0.04;
 const int thresholdVal = 100; // How sensitive it is to detecting corners
 const int convolutionWindowSize = 3;
 
+// Using Sobel Operator
 float partialX(int i, int j) {
-  if (j > 0 && j < src_gray.cols-1) {
-     return (src_gray.at<float>(i, j+1) - src_gray.at<float>(i, j-1))/2;
+  float gxVal;
+  float partialXVal = 0;
+  for (int l = i-1; l <= i+1; l++) {
+    for (int m = j-1; m <= j+1; m++) {
+      gxVal = gx[l-(i-1)][m-(j-1)];
+      partialXVal += gxVal * paddedSrcGray.at<float>(l,m);
+    }
   }
 
-  return 0;
+  return partialXVal;
 }
 
+// Using Sobel operator
 float partialY(int i, int j) {
-  if (i > 0 && i < src_gray.cols-1) {
-    return (src_gray.at<float>(i+1, j) - src_gray.at<float>(i-1, j))/2;
+  float gyVal;
+  float partialYVal = 0;
+  for (int l = i-1; l <= i+1; l++) {
+    for (int m = j-1; m <= j+1; m++) {
+      gyVal = gy[l-(i-1)][m-(j-1)];
+      partialYVal += gyVal * paddedSrcGray.at<float>(l,m);
+    }
   }
 
-  return 0;
+  return partialYVal;
 }
 
 float det(int gxx, int gxy, int gyy) {
-  return gxx*gyy + gxy*gxy;
+  return gxx*gyy - gxy*gxy;
 }
 
 float trace(int gxx, int gyy) {
@@ -46,25 +72,32 @@ float trace(int gxx, int gyy) {
 // Computer convolution centered at (i,j) with size convolutionWindowSize by
 // convolutionWindowSize.
 float c(int i, int j) {
-  int halfWindow = convolutionWindowSize/2;
-  float gxx = 0;
-  float gxy = 0;
-  float gyy = 0;
-
-  for (int l = i - halfWindow; l <= i + halfWindow; l++) {
-    for (int m = j - halfWindow; m <= j + halfWindow; m++) {
-      float partialXVal = partialX(l, m);
-      float partialYVal = partialY(l, m);
-      float gaussianVal = gaussianKernel[l - (i - halfWindow)][m - (j - halfWindow)];
-      gxx += partialXVal*partialXVal*gaussianVal;
-      gxy += partialXVal*partialYVal*gaussianVal;
-      gyy += partialYVal*partialYVal*gaussianVal;
-    }
-  }
+  float partialXVal = partialX(i, j);
+  float partialYVal = partialY(i, j);
+  float gxx = partialXVal*partialXVal;
+  float gxy = partialXVal*partialYVal;
+  float gyy = partialYVal*partialYVal;
 
   float traceVal = trace(gxx, gyy);
   return det(gxy, gxy, gyy) - k * traceVal * traceVal;
+}
 
+void gaussianConvolution(Mat &output) {
+  int halfWindow = convolutionWindowSize/2;
+  float gaussianVal;
+  float convolvedVal;
+  for (int i = 1; i < paddedSrcGray.rows-1; i++) {
+    for (int j = 1; j < paddedSrcGray.cols-1; j++) {
+      convolvedVal = 0;
+      for (int l = i-halfWindow; l <= i+halfWindow; l++) {
+        for (int m = j-halfWindow; m <= j+halfWindow; m++) {
+          gaussianVal = gaussianKernel[l-(i-halfWindow)][m-(j-halfWindow)];
+          convolvedVal += paddedSrcGray.at<float>(l, m) * gaussianVal;
+        }
+      }
+      output.at<float>(i-1,j-1) = convolvedVal;
+    }
+  }
 }
 
 void nonMaxSupression(Mat cMatrix, Mat &harris) {
@@ -91,15 +124,14 @@ void nonMaxSupression(Mat cMatrix, Mat &harris) {
 }
 
 void cornerHarris(Mat &harris) {
-  Mat cMatrix = Mat::zeros(src_gray.size(), CV_32FC1);
-  for (int i = 0; i < src_gray.rows; i++) {
-    for (int j = 0; j < src_gray.cols; j++) {
-      //cout << "c of " << i  << " " << j << " is " << c(i,j) << endl;
-      cMatrix.at<float>(i, j) = c(i, j);
+  gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
+  gaussianConvolution(gaussianConvolvedMatrix);
+
+  for (int i = 1; i < gaussianConvolvedMatrix.rows-1; i++) {
+    for (int j = 1; j < gaussianConvolvedMatrix.cols-1; j++) {
+      harris.at<float>(i, j) = c(i, j);
     }
   }
-
-  nonMaxSupression(cMatrix, harris);
 }
 
 int main(int argc, char **argv) {
@@ -117,21 +149,24 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  cvtColor(src, src_gray, COLOR_BGR2GRAY);
-  if(src_gray.empty()) {
+  cvtColor(src, srcGray, COLOR_BGR2GRAY);
+  srcGray.convertTo(srcGray, CV_32FC1, 0.0115, 0);
+  if(srcGray.empty()) {
       printf("Image %s not found\n", img_path);
       exit(-1);
   }
 
+  copyMakeBorder(srcGray, paddedSrcGray, 2, 2, 2, 2, BORDER_REPLICATE);
+
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
+  double startTime = CycleTimer::currentSeconds();
   cornerHarris(harris);
+  double endTime = CycleTimer::currentSeconds();
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
-      cout << "Harris at " << i;
-      cout << " " << j << " is " << harris.at<float>(i,j) << endl;
       if (harris.at<float>(i,j) > thresholdVal) {
         // points out edges that stick out
-        circle(src, Point(j,i), 3, Scalar(0));
+        circle(src, Point(j,i), 3, Scalar(255));
       }
     }
   }
@@ -139,6 +174,7 @@ int main(int argc, char **argv) {
   //namedWindow(window);
   //imshow(window, src);
   //waitKey();
-  imwrite("output/callibration.jpg", harris);
+  imwrite("output/callibration.jpg", src);
+  cout << "Serial: " << endTime - startTime << endl;
   return 0;
 }
