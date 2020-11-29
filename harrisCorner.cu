@@ -118,6 +118,7 @@ void non_maximum_suppression_kernel(float *cornerness, float *input, float *outp
 
 /* input is a grayscale image of size height by width */
 void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width) {
+    auto start_time = high_resolution_clock::now();
     const size_t padding = TOTAL_PADDING_SIZE;
     // Create space for the image on the GPU
     float *device_x_grad;
@@ -164,13 +165,14 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     cudaFree(device_input);
     cudaFree(device_output);
     auto mem_end_time4 = high_resolution_clock::now();
+    auto end_time = high_resolution_clock::now();
 
     printf("Kernel: %ld us\n", duration_cast<microseconds>(kernel_end_time - kernel_start_time).count());
     printf("Memory 1: %ld us\n", duration_cast<microseconds>(mem_end_time1 - mem_start_time1).count());
     printf("Memory 2: %ld us\n", duration_cast<microseconds>(mem_end_time2 - mem_start_time2).count());
     printf("Memory 3: %ld us\n", duration_cast<microseconds>(mem_end_time3 - mem_start_time3).count());
     printf("Memory 4: %ld us\n", duration_cast<microseconds>(mem_end_time4 - mem_start_time4).count());
-    //printf("Memory Total: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
+    printf("Total Time: %ld us\n", duration_cast<microseconds>(end_time - start_time).count());
 }
 
 void init_cuda() {
