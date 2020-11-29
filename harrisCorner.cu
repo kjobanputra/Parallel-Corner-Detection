@@ -131,11 +131,15 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     const int grad_image_height = height + 2 * (padding - GRAD_PADDING_SIZE);
     const int grad_image_size = sizeof(float) * grad_image_height * grad_image_width;
     const int output_image_size = sizeof(float) * height * width;
+    const int total_size = input_image_size + grad_image_size * 2 + output_image_size;
     auto mem_start_time1 = high_resolution_clock::now();
-    cudaMalloc(&device_input, input_image_size);
-    cudaMalloc(&device_x_grad, grad_image_size);
-    cudaMalloc(&device_y_grad, grad_image_size);
-    cudaMalloc(&device_output, output_image_size);
+    cudaMalloc(&device_input, total_size);
+    device_x_grad = (float*)(((char *)device_input) + input_image_size);
+    device_y_grad = (float*)(((char *)device_x_grad) + grad_image_size);
+    device_output = (float*)(((char *)device_y_grad) + grad_image_size);
+    //cudaMalloc(&device_x_grad, grad_image_size);
+    //cudaMalloc(&device_y_grad, grad_image_size);
+    //cudaMalloc(&device_output, output_image_size);
     auto mem_end_time1 = high_resolution_clock::now();
 
     // Copy input arrays to the GPU
@@ -158,10 +162,10 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     cudaMemcpy(output, device_output, output_image_size, cudaMemcpyDeviceToHost);
     auto mem_end_time3 = high_resolution_clock::now();
     auto mem_start_time4 = high_resolution_clock::now();
-    cudaFree(device_x_grad);
-    cudaFree(device_y_grad);
+    //cudaFree(device_x_grad);
+    //cudaFree(device_y_grad);
     cudaFree(device_input);
-    cudaFree(device_output);
+    //cudaFree(device_output);
     auto mem_end_time4 = high_resolution_clock::now();
     auto end_time = high_resolution_clock::now();
 
