@@ -1,3 +1,4 @@
 ## Parallel Corner Detection
 
-[Proposal](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Proposal.pdf)
+Week 1:
+  + [Proposal](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Proposal.pdf)
