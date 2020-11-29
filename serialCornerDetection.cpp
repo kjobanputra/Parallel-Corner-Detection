@@ -37,7 +37,7 @@ float partialX(int i, int j) {
   for (int l = i-1; l <= i+1; l++) {
     for (int m = j-1; m <= j+1; m++) {
       gxVal = gx[l-(i-1)][m-(j-1)];
-      partialXVal += gxVal * gaussianConvolvedMatrix.at<float>(l,m);
+      partialXVal += gxVal * paddedSrcGray.at<float>(l,m);
     }
   }
 
@@ -50,7 +50,7 @@ float partialY(int i, int j) {
   for (int l = i-1; l <= i+1; l++) {
     for (int m = j-1; m <= j+1; m++) {
       gyVal = gy[l-(i-1)][m-(j-1)];
-      partialYVal += gyVal * gaussianConvolvedMatrix.at<float>(l,m);
+      partialYVal += gyVal * paddedSrcGray.at<float>(l,m);
     }
   }
 
@@ -128,7 +128,6 @@ void cornerHarris(Mat &harris) {
       harris.at<float>(i, j) = c(i, j);
     }
   }
-
 }
 
 int main(int argc, char **argv) {
@@ -147,6 +146,7 @@ int main(int argc, char **argv) {
   }
 
   cvtColor(src, srcGray, COLOR_BGR2GRAY);
+  srcGray.convertTo(srcGray, CV_32FC1, 0.0115, 0);
   if(srcGray.empty()) {
       printf("Image %s not found\n", img_path);
       exit(-1);
@@ -158,18 +158,16 @@ int main(int argc, char **argv) {
   cornerHarris(harris);
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
-      cout << "Harris at " << i;
-      cout << " " << j << " is " << harris.at<float>(i,j) << endl;
       if (harris.at<float>(i,j) > thresholdVal) {
         // points out edges that stick out
-        circle(src, Point(j,i), 3, Scalar(100));
+        circle(src, Point(j,i), 3, Scalar(255));
       }
     }
   }
 
-  namedWindow(window);
-  imshow(window, src);
-  waitKey();
-  //imwrite("output/callibration.jpg", src);
+  //namedWindow(window);
+  //imshow(window, src);
+  //waitKey();
+  imwrite("output/callibration.jpg", src);
   return 0;
 }
