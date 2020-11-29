@@ -1,6 +1,6 @@
-## Parallel Corner Detection
+# Parallel Corner Detection
 
-# Progress
+## Progress
 Week 4:
   + We implemented the last step in the algorithm. There are further serial optimizations that we are considering to implement to compare the best possible serial version as well as the best possible parallel version. You can see results in the following link: [Midpoint Results](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Results%20-%20Midpoint.pdf). As you can see, the serial version seems to be outperforming the parallel version that we implemented in CUDA. As expected, the main bottleneck is the memory allocation as well as the copying of memory to and from the GPU. We also wrote up the following checkpoint report, in which we detail our future work in the coming weeks: [Checkpoint Report]() 
 
@@ -13,7 +13,7 @@ Week 2:
 Week 1:
   + We researched our project and then wrote up the following proposal: [Proposal](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Proposal.pdf). The process of writing the proposal made us make sure that we gained the domain knowledge we needed to make further steps in the project.
 
-# Schedule
+## Schedule
 Week 1 (11/2 - 11/6) - Finish proposal, research hardware, and acquire / set up hardware
 
 Week 2 (11/9 - 11/13) - Develop serial version of the Harris Corner Detector to run on the NVIDIA Jetson Nano
