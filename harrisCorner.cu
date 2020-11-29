@@ -133,12 +133,10 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     const int output_image_size = sizeof(float) * height * width;
     auto mem_start_time1 = high_resolution_clock::now();
     cudaMalloc(&device_input, input_image_size);
-    auto mem_end_time1 = high_resolution_clock::now();
-
-    cudaMalloc(&device_input, input_image_size);
     cudaMalloc(&device_x_grad, grad_image_size);
     cudaMalloc(&device_y_grad, grad_image_size);
     cudaMalloc(&device_output, output_image_size);
+    auto mem_end_time1 = high_resolution_clock::now();
 
     // Copy input arrays to the GPU
     auto mem_start_time2 = high_resolution_clock::now();
