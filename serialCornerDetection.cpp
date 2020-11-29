@@ -31,6 +31,7 @@ const float k = 0.04;
 const int thresholdVal = 100; // How sensitive it is to detecting corners
 const int convolutionWindowSize = 3;
 
+// Using Sobel Operator
 float partialX(int i, int j) {
   float gxVal;
   float partialXVal = 0;
@@ -44,6 +45,7 @@ float partialX(int i, int j) {
   return partialXVal;
 }
 
+// Using Sobel operator
 float partialY(int i, int j) {
   float gyVal;
   float partialYVal = 0;
