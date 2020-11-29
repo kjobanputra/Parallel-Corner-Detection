@@ -15,6 +15,10 @@
 
 #define dceil(a, b) ((a) % (b) != 0 ? ((a) / (b) + 1) : ((a) / (b)))
 
+#define INSIDE (1.0f)
+#define OUTSIDE (0.0f)
+#define UNDEFINED (-1.0f)
+
 // __global__
 // void harrisCornerDetector_kernel(float *input, float *output, int height, int width) {
 //     const int shared_size = THREADS_PER_BLOCK + 2 * THREADS_PER_BLOCK * SHARED_PADDING + SHARED_PADDING * SHARED_PADDING;
@@ -24,6 +28,11 @@
 //     uint pixelY = blockIdx.y * blockDim.y + threadIdx.y;
 //     uint pixelX = blockIdx.x * blockDim.x + threadIdx.x;
 // }
+
+__global__
+void gaussian_kernel(float *image, float *output, int height, int width, int pheight, int pwidth) {
+    // TODO:
+}
 
 __global__
 void sobel_x_kernel(float *image, float *output, int height, int width, int pheight, int pwidth) {
@@ -97,6 +106,12 @@ void cornerness_kernel(float *x_grad, float *y_grad, float *output, int height, 
     }
 }
 
+/* algorithm borrowed from: http://www.bmva.org/bmvc/2008/papers/45.pdf */
+__global__
+void non_maximum_suppression_kernel(float *cornerness, float *input, float *output, int height, int width, bool *done) {
+    
+}
+
 /* input is a grayscale image of size height by width */
 void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width) {
     const size_t padding = TOTAL_PADDING_SIZE;
@@ -116,10 +131,12 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     cudaMalloc(&device_x_grad, grad_image_size);
     cudaMalloc(&device_y_grad, grad_image_size);
     cudaMalloc(&device_output, output_image_size);
+    double mem_end_time1 = CycleTimer::currentSeconds();
 
     // Copy input arrays to the GPU
+    double mem_start_time2 = CycleTimer::currentSeconds();
     cudaMemcpy(device_input, pinput, input_image_size, cudaMemcpyHostToDevice);
-    double mem_end_time1 = CycleTimer::currentSeconds();
+    double mem_end_time2 = CycleTimer::currentSeconds();
 
     const dim3 grid (dceil(width, BLOCK_WIDTH), dceil(height, BLOCK_HEIGHT));
     const dim3 threadBlock (BLOCK_WIDTH, BLOCK_HEIGHT);
@@ -132,17 +149,22 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     double kernel_end_time = CycleTimer::currentSeconds();
 
     // Copy result to CPU
-    double mem_start_time2 = CycleTimer::currentSeconds();
+    double mem_start_time3 = CycleTimer::currentSeconds();
     cudaMemcpy(output, device_output, output_image_size, cudaMemcpyDeviceToHost);
-
+    double mem_end_time3 = CycleTimer::currentSeconds();
+    double mem_start_time4 = CycleTimer::currentSeconds();
     cudaFree(device_x_grad);
     cudaFree(device_y_grad);
     cudaFree(device_input);
     cudaFree(device_output);
-    double mem_end_time2 = CycleTimer::currentSeconds();
+    double mem_end_time4 = CycleTimer::currentSeconds();
 
     printf("Kernel: %.3f ms\n", 1000.f * (kernel_end_time - kernel_start_time));
-    printf("Memory: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
+    printf("Memory 1: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1));
+    printf("Memory 2: %.3f ms\n", 1000.f * (mem_end_time2 - mem_start_time2));
+    printf("Memory 3: %.3f ms\n", 1000.f * (mem_end_time3 - mem_start_time3));
+    printf("Memory 4: %.3f ms\n", 1000.f * (mem_end_time4 - mem_start_time4));
+    printf("Memory Total: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
 }
 
 void init_cuda() {
