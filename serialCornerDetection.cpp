@@ -4,7 +4,11 @@
 
 #include "CycleTimer.h"
 
+// For timing
+#include <chrono>
+
 #define ARG_IMG 1
+#define ARG_OUT 2
 
 using namespace cv;
 using namespace std;
@@ -135,12 +139,13 @@ void cornerHarris(Mat &harris) {
 }
 
 int main(int argc, char **argv) {
-  if(argc < 2) {
-    printf("Usage: ./harrisCorner image_path\n");
+  if(argc < 3) {
+    printf("Usage: ./harrisCorner image_path output_path\n");
     exit(-1);
   }
 
   const char *img_path = argv[ARG_IMG];
+  const char *out_path = argv[ARG_OUT];
   Mat src = imread(img_path);
 
   if (src.empty())
@@ -159,9 +164,11 @@ int main(int argc, char **argv) {
   copyMakeBorder(srcGray, paddedSrcGray, 2, 2, 2, 2, BORDER_REPLICATE);
 
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
-  double startTime = CycleTimer::currentSeconds();
+  auto startTime = std::chrono::high_resolution_clock::now();
   cornerHarris(harris);
-  double endTime = CycleTimer::currentSeconds();
+  auto endTime = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
+
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
@@ -174,7 +181,7 @@ int main(int argc, char **argv) {
   //namedWindow(window);
   //imshow(window, src);
   //waitKey();
-  imwrite("output/callibration.jpg", src);
-  cout << "Serial: " << endTime - startTime << endl;
+  imwrite(out_path, src);
+  cout << "Serial: " << duration.count() << endl;
   return 0;
 }

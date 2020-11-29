@@ -7,6 +7,8 @@
 #include "CycleTimer.h"
 #include "config.h"
 
+#include <chrono>
+
 #define BLOCK_WIDTH 32
 #define BLOCK_HEIGHT 32
 #define THREADS_PER_BLOCK (BLOCK_WIDTH * BLOCK_HEIGHT)
@@ -14,6 +16,12 @@
 #define SHARED_PADDING (WINDOW_SIZE / 2) + (GRAD_SIZE / 2) 
 
 #define dceil(a, b) ((a) % (b) != 0 ? ((a) / (b) + 1) : ((a) / (b)))
+
+#define INSIDE (1.0f)
+#define OUTSIDE (0.0f)
+#define UNDEFINED (-1.0f)
+
+using namespace std::chrono;
 
 // __global__
 // void harrisCornerDetector_kernel(float *input, float *output, int height, int width) {
@@ -24,6 +32,11 @@
 //     uint pixelY = blockIdx.y * blockDim.y + threadIdx.y;
 //     uint pixelX = blockIdx.x * blockDim.x + threadIdx.x;
 // }
+
+__global__
+void gaussian_kernel(float *image, float *output, int height, int width, int pheight, int pwidth) {
+    // TODO:
+}
 
 __global__
 void sobel_x_kernel(float *image, float *output, int height, int width, int pheight, int pwidth) {
@@ -97,6 +110,12 @@ void cornerness_kernel(float *x_grad, float *y_grad, float *output, int height, 
     }
 }
 
+/* algorithm borrowed from: http://www.bmva.org/bmvc/2008/papers/45.pdf */
+__global__
+void non_maximum_suppression_kernel(float *cornerness, float *input, float *output, int height, int width, bool *done) {
+    
+}
+
 /* input is a grayscale image of size height by width */
 void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width) {
     const size_t padding = TOTAL_PADDING_SIZE;
@@ -111,38 +130,45 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     const int grad_image_height = height + 2 * (padding - GRAD_PADDING_SIZE);
     const int grad_image_size = sizeof(float) * grad_image_height * grad_image_width;
     const int output_image_size = sizeof(float) * height * width;
-    double mem_start_time1 = CycleTimer::currentSeconds();
+    auto mem_start_time1 = high_resolution_clock::now();
     cudaMalloc(&device_input, input_image_size);
     cudaMalloc(&device_x_grad, grad_image_size);
     cudaMalloc(&device_y_grad, grad_image_size);
     cudaMalloc(&device_output, output_image_size);
+    auto mem_end_time1 = high_resolution_clock::now();
 
     // Copy input arrays to the GPU
+    auto mem_start_time2 = high_resolution_clock::now();
     cudaMemcpy(device_input, pinput, input_image_size, cudaMemcpyHostToDevice);
-    double mem_end_time1 = CycleTimer::currentSeconds();
+    auto mem_end_time2 = high_resolution_clock::now();
 
     const dim3 grid (dceil(width, BLOCK_WIDTH), dceil(height, BLOCK_HEIGHT));
     const dim3 threadBlock (BLOCK_WIDTH, BLOCK_HEIGHT);
-    double kernel_start_time = CycleTimer::currentSeconds();
+    auto kernel_start_time = high_resolution_clock::now();
     sobel_x_kernel<<<grid, threadBlock>>>(device_input, device_x_grad, grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
     sobel_y_kernel<<<grid, threadBlock>>>(device_input, device_y_grad, grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
     cudaDeviceSynchronize();
     cornerness_kernel<<<grid, threadBlock>>>(device_x_grad, device_y_grad, device_output, height, width);
     cudaDeviceSynchronize();
-    double kernel_end_time = CycleTimer::currentSeconds();
+    auto kernel_end_time = high_resolution_clock::now();
 
     // Copy result to CPU
-    double mem_start_time2 = CycleTimer::currentSeconds();
+    auto mem_start_time3 = high_resolution_clock::now();
     cudaMemcpy(output, device_output, output_image_size, cudaMemcpyDeviceToHost);
-
+    auto mem_end_time3 = high_resolution_clock::now();
+    auto mem_start_time4 = high_resolution_clock::now();
     cudaFree(device_x_grad);
     cudaFree(device_y_grad);
     cudaFree(device_input);
     cudaFree(device_output);
-    double mem_end_time2 = CycleTimer::currentSeconds();
+    auto mem_end_time4 = high_resolution_clock::now();
 
-    printf("Kernel: %.3f ms\n", 1000.f * (kernel_end_time - kernel_start_time));
-    printf("Memory: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
+    printf("Kernel: %d ms\n", duration_cast<microseconds>(kernel_end_time - kernel_start_time).count());
+    printf("Memory 1: %d ms\n", duration_cast<microseconds>(mem_end_time1 - mem_start_time1).count());
+    printf("Memory 2: %d ms\n", duration_cast<microseconds>(mem_end_time2 - mem_start_time2).count());
+    printf("Memory 3: %d ms\n", duration_cast<microseconds>(mem_end_time3 - mem_start_time3).count());
+    printf("Memory 4: %d ms\n", duration_cast<microseconds>(mem_end_time4 - mem_start_time4).count());
+    //printf("Memory Total: %.3f ms\n", 1000.f * (mem_end_time1 - mem_start_time1 + mem_end_time2 - mem_start_time2));
 }
 
 void init_cuda() {
