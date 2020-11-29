@@ -6,15 +6,19 @@
 #include "CycleTimer.h"
 #include "config.h"
 
+#include <chrono>
+
 #define ARG_IMG 1
 #define ARG_OUT 2
 
 using namespace cv;
 using namespace std;
+using namespace std::chrono;
 
 void harrisCornerDetector(unsigned char *input, unsigned char *output, int height, int width);
 void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width);
 void printCudaInfo();
+void init_cuda();
 
 void output_sobel_response(const char *file_path, float *buf, int height, int width) {
     Mat output(height, width, CV_32FC1, buf, Mat::AUTO_STEP);
@@ -62,19 +66,17 @@ int main(int argc, char **argv) {
     float *output_buf = new float[img.rows * img.cols];
     memcpy(img_buf, img_padded.data, sizeof(float) * img_padded.rows * img_padded.cols);
 
-    // harrisCornerDetector(img_buf, output_buf, img.rows, img.cols);
-
-    double kernelStartTime = CycleTimer::currentSeconds();
+    init_cuda();
+    auto kernelStartTime = high_resolution_clock::now();
     harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
-    double kernelEndTime = CycleTimer::currentSeconds();
-    
+    auto kernelEndTime = high_resolution_clock::now();    
     delete[] img_buf;
 
     //output_sobel_response(out_path, output_buf, img.rows, img.cols);
     output_cornerness_response(out_path, output_buf, img.rows, img.cols);
     delete[] output_buf;
 
-    double overall_duration = kernelEndTime - kernelStartTime;
-    printf("Overall: %.3f ms\n", 1000.f * overall_duration);
+    auto overall_duration = duration_cast<microseconds>(kernelEndTime - kernelStartTime);
+    printf("Overall: %ld us\n", overall_duration.count());
     return 0;
 }
