@@ -22,8 +22,18 @@ Week 3 (11/16 - 11/20) - Develop and implement a method to parallelize step 1 an
 
 Week 4 (11/23 - 11/27) - Develop and implement a method to parallelize step 4 of the Harris Corner Detector
 
-Week 5 (11/30 - 12/6) - Run benchmarks comparing the serial and parallel versions of the Harris Corner Detector on the NVIDIA Jetson Nano. Evaluate results. Also look into methods for parallelizing the Harris Corner Detector on popular embedded devices without a dedicated GPU
+Week 5:
+  + (11/30 - 12/3): 
+    + Kunal: Look into using OpenMP for the parallel implementation
+    + Ryan: Eliminate padding
+  + (12/4 - 12/6):
+    + Ryan, Kunal: Eliminate storing intermediate results in between phases
 
-Week 6 (12/7 - 12/11) - Benchmark a homography computation on the NVIDIA Jetson Nano using both the serial and parallel implementations for the Harris Corner Detector. Compare performance
+Week 6: 
+  + (12/7 - 12/10):
+    + Kunal: Implement OpenMP version
+    + Ryan: Test our how implementation translates to an embedded device
+  + (12/11 - 12/14):
+    + Kunal, Ryan: Prepare for final presentation and demo
+    + Kunal, Ryan: If time permits, work on homography estimation
 
-Week 7 (12/14 - 12/18) - Finish any implementation details that remain from previous weeks. Prepare graphics / demo for final presentation
