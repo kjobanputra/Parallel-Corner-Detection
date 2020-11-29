@@ -1,4 +1,6 @@
 ## Parallel Corner Detection
+
+# Progress
 Week 4:
   + We implemented the last step in the algorithm. There are further serial optimizations that we are considering to implement to compare the best possible serial version as well as the best possible parallel version. You can see results in the following link: [Midpoint Results](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Results%20-%20Midpoint.pdf). As you can see, the serial version seems to be outperforming the parallel version that we implemented in CUDA. As expected, the main bottleneck is the memory allocation as well as the copying of memory to and from the GPU. We also wrote up the following checkpoint report, in which we detail our future work in the coming weeks: [Checkpoint Report]() 
 
@@ -10,3 +12,18 @@ Week 2:
 
 Week 1:
   + We researched our project and then wrote up the following proposal: [Proposal](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Proposal.pdf). The process of writing the proposal made us make sure that we gained the domain knowledge we needed to make further steps in the project.
+
+# Schedule
+Week 1 (11/2 - 11/6) - Finish proposal, research hardware, and acquire / set up hardware
+
+Week 2 (11/9 - 11/13) - Develop serial version of the Harris Corner Detector to run on the NVIDIA Jetson Nano
+
+Week 3 (11/16 - 11/20) - Develop and implement a method to parallelize step 1 and 3 of the Harris Corner Detector. Also, prepare for the checkpoint
+
+Week 4 (11/23 - 11/27) - Develop and implement a method to parallelize step 4 of the Harris Corner Detector
+
+Week 5 (11/30 - 12/6) - Run benchmarks comparing the serial and parallel versions of the Harris Corner Detector on the NVIDIA Jetson Nano. Evaluate results. Also look into methods for parallelizing the Harris Corner Detector on popular embedded devices without a dedicated GPU
+
+Week 6 (12/7 - 12/11) - Benchmark a homography computation on the NVIDIA Jetson Nano using both the serial and parallel implementations for the Harris Corner Detector. Compare performance
+
+Week 7 (12/14 - 12/18) - Finish any implementation details that remain from previous weeks. Prepare graphics / demo for final presentation
