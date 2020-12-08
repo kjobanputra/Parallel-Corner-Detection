@@ -48,6 +48,23 @@ void gaussian_kernel(float *image, float *output, int height, int width, int phe
 }
 
 __global__
+void sobel_kernel(int height, int width, int pheight, int pwidth) {
+    const uint pY = blockIdx.y * blockDim.y + threadIdx.y;
+    const uint pX = blockIdx.x * blockDim.x + threadIdx.x;
+    const uint ppY = pY + pheight;
+    const uint ppX = pX + pwidth;
+    const uint w = 2 * pwidth + width;
+
+    float x_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[ppY * w + ppX - 1] + 0.125f * image_data[(ppY + 1) * w + ppX - 1] +
+                  -0.125f * image_data[(ppY - 1) * w + ppX + 1] + -0.25f * image_data[ppY * w + ppX + 1] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
+    float y_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[(ppY - 1) * w + ppX] + 0.125f * image_data[(ppY - 1) * w + ppX + 1] + 
+                  -0.125f * image_data[(ppY + 1) * w + ppX - 1] + -0.25f * image_data[(ppY + 1) * w + ppX] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
+
+    image_x_grad[pY * width + pX] = x_grad;
+    image_y_grad[pY * width + pX] = y_grad;
+}
+
+__global__
 void sobel_x_kernel(int height, int width, int pheight, int pwidth) {
     const uint pixelY = blockIdx.y * blockDim.y + threadIdx.y;
     const uint pixelX = blockIdx.x * blockDim.x + threadIdx.x;
@@ -147,11 +164,12 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     const dim3 grid (dceil(width, BLOCK_WIDTH), dceil(height, BLOCK_HEIGHT));
     const dim3 threadBlock (BLOCK_WIDTH, BLOCK_HEIGHT);
     auto kernel_start_time = high_resolution_clock::now();
-    sobel_x_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
-    sobel_y_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
-    //cudaDeviceSynchronize();
+    //sobel_x_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
+    //sobel_y_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
+    sobel_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
+    cudaDeviceSynchronize();
     cornerness_kernel<<<grid, threadBlock>>>(height, width);
-    //cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     auto kernel_end_time = high_resolution_clock::now();
 
     // Copy result to CPU
