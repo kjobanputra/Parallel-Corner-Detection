@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <tuple>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -31,6 +32,8 @@ __constant__ float *image_data;
 __constant__ float *image_x_grad;
 __constant__ float *image_y_grad;
 float *c_image_data;
+float *c_image_x_grad;
+float *c_image_y_grad;
 
 // __global__
 // void harrisCornerDetector_kernel(float *input, float *output, int height, int width) {
@@ -55,13 +58,20 @@ void sobel_kernel(int height, int width, int pheight, int pwidth) {
     const uint ppX = pX + pwidth;
     const uint w = 2 * pwidth + width;
 
-    float x_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[ppY * w + ppX - 1] + 0.125f * image_data[(ppY + 1) * w + ppX - 1] +
-                  -0.125f * image_data[(ppY - 1) * w + ppX + 1] + -0.25f * image_data[ppY * w + ppX + 1] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
-    float y_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[(ppY - 1) * w + ppX] + 0.125f * image_data[(ppY - 1) * w + ppX + 1] + 
-                  -0.125f * image_data[(ppY + 1) * w + ppX - 1] + -0.25f * image_data[(ppY + 1) * w + ppX] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
+    if(pX < width && pY < height) {
+        float x_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[ppY * w + ppX - 1] + 0.125f * image_data[(ppY + 1) * w + ppX - 1] +
+                    -0.125f * image_data[(ppY - 1) * w + ppX + 1] + -0.25f * image_data[ppY * w + ppX + 1] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
+        float y_grad = 0.125f * image_data[(ppY - 1) * w + ppX - 1] + 0.25f * image_data[(ppY - 1) * w + ppX] + 0.125f * image_data[(ppY - 1) * w + ppX + 1] + 
+                    -0.125f * image_data[(ppY + 1) * w + ppX - 1] + -0.25f * image_data[(ppY + 1) * w + ppX] + -0.125f * image_data[(ppY + 1) * w + ppX + 1];
 
-    image_x_grad[pY * width + pX] = x_grad;
-    image_y_grad[pY * width + pX] = y_grad;
+        image_x_grad[pY * width + pX] = x_grad;
+        image_y_grad[pY * width + pX] = y_grad;
+    }
+}
+
+__global__
+void sobel_kernel_shared(int height, int width, int pheight, int pwidth) {
+    
 }
 
 __global__
@@ -144,22 +154,19 @@ void non_maximum_suppression_kernel(float *cornerness, float *input, float *outp
 }
 
 /* input is a grayscale image of size height by width */
-void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width) {
+std::tuple<long int, long int, long int> harrisCornerDetectorStaged(float *pinput, float *output, int height, int width) {
     auto start_time = high_resolution_clock::now();
     const size_t padding = TOTAL_PADDING_SIZE;
 
     const int input_image_size = sizeof(float) * (height + 2 * padding) * (width + 2 * padding);
     const int grad_image_width = width + 2 * (padding - GRAD_PADDING_SIZE);
     const int grad_image_height = height + 2 * (padding - GRAD_PADDING_SIZE);
-    const int grad_image_size = sizeof(float) * grad_image_height * grad_image_width;
     const int output_image_size = sizeof(float) * height * width;
-    auto mem_start_time1 = high_resolution_clock::now();
-    auto mem_end_time1 = high_resolution_clock::now();
 
     // Copy input arrays to the GPU
-    auto mem_start_time2 = high_resolution_clock::now();
+    auto mem_start_time1 = high_resolution_clock::now();
     cudaMemcpy(c_image_data, pinput, input_image_size, cudaMemcpyHostToDevice);
-    auto mem_end_time2 = high_resolution_clock::now();
+    auto mem_end_time1 = high_resolution_clock::now();
 
     const dim3 grid (dceil(width, BLOCK_WIDTH), dceil(height, BLOCK_HEIGHT));
     const dim3 threadBlock (BLOCK_WIDTH, BLOCK_HEIGHT);
@@ -173,22 +180,14 @@ void harrisCornerDetectorStaged(float *pinput, float *output, int height, int wi
     auto kernel_end_time = high_resolution_clock::now();
 
     // Copy result to CPU
-    auto mem_start_time3 = high_resolution_clock::now();
+    auto mem_start_time2 = high_resolution_clock::now();
     cudaMemcpy(output, c_image_data, output_image_size, cudaMemcpyDeviceToHost);
-    auto mem_end_time3 = high_resolution_clock::now();
-    auto mem_start_time4 = high_resolution_clock::now();
-    auto mem_end_time4 = high_resolution_clock::now();
+    auto mem_end_time2 = high_resolution_clock::now();
     auto end_time = high_resolution_clock::now();
 
-    auto mem_total_time = duration_cast<microseconds>((mem_end_time1 - mem_start_time1) + (mem_end_time2 - mem_start_time2) + 
-                                                      (mem_end_time3 - mem_start_time3) + (mem_end_time4 - mem_start_time4));
-    printf("Kernel: %ld us\n", duration_cast<microseconds>(kernel_end_time - kernel_start_time).count());
-    printf("Memory 1: %ld us\n", duration_cast<microseconds>(mem_end_time1 - mem_start_time1).count());
-    printf("Memory 2: %ld us\n", duration_cast<microseconds>(mem_end_time2 - mem_start_time2).count());
-    printf("Memory 3: %ld us\n", duration_cast<microseconds>(mem_end_time3 - mem_start_time3).count());
-    printf("Memory 4: %ld us\n", duration_cast<microseconds>(mem_end_time4 - mem_start_time4).count());
-    printf("Total Memory Time: %ld us\n", mem_total_time.count());
-    printf("Total Time: %ld us\n", duration_cast<microseconds>(end_time - start_time).count());
+    return std::make_tuple(duration_cast<microseconds>(kernel_end_time - kernel_start_time).count(), 
+                                    duration_cast<microseconds>(mem_end_time1 - mem_start_time1).count(), 
+                                    duration_cast<microseconds>(mem_end_time2 - mem_start_time2).count());
 }
 
 // __global__
@@ -314,16 +313,18 @@ void init_cuda() {
     cudaFree(0);
 
     // Allocate space for our input images and intermediate results
-    float *d_image_data;
-    float *d_image_x_grad;
-    float *d_image_y_grad;
-    cudaMalloc(&d_image_data, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
-    cudaMalloc(&d_image_x_grad, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
-    cudaMalloc(&d_image_y_grad, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
-    cudaMemcpyToSymbol(image_data, &d_image_data, sizeof(float *));
-    cudaMemcpyToSymbol(image_x_grad, &d_image_x_grad, sizeof(float *));
-    cudaMemcpyToSymbol(image_y_grad, &d_image_y_grad, sizeof(float *));
-    c_image_data = d_image_data;
+    cudaMalloc(&c_image_data, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
+    cudaMalloc(&c_image_x_grad, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
+    cudaMalloc(&c_image_y_grad, sizeof(float) * MAX_IMAGE_HEIGHT * MAX_IMAGE_WIDTH);
+    cudaMemcpyToSymbol(image_data, &c_image_data, sizeof(float *));
+    cudaMemcpyToSymbol(image_x_grad, &c_image_x_grad, sizeof(float *));
+    cudaMemcpyToSymbol(image_y_grad, &c_image_y_grad, sizeof(float *));
+}
+
+void free_cuda() {
+    cudaFree(c_image_data);
+    cudaFree(c_image_x_grad);
+    cudaFree(c_image_y_grad);
 }
 
 void

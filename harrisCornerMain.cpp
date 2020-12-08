@@ -2,6 +2,7 @@
 #include <opencv2/highgui.hpp>
 #include <string.h>
 #include <stdio.h>
+#include <tuple>
 
 #include "CycleTimer.h"
 #include "config.h"
@@ -16,9 +17,10 @@ using namespace std;
 using namespace std::chrono;
 
 void harrisCornerDetector(unsigned char *input, unsigned char *output, int height, int width);
-void harrisCornerDetectorStaged(float *pinput, float *output, int height, int width);
+std::tuple<long int, long int, long int> harrisCornerDetectorStaged(float *pinput, float *output, int height, int width);
 void printCudaInfo();
 void init_cuda();
+void free_cuda();
 
 void output_sobel_response(const char *file_path, float *buf, int height, int width) {
     Mat output(height, width, CV_32FC1, buf, Mat::AUTO_STEP);
@@ -67,16 +69,27 @@ int main(int argc, char **argv) {
     memcpy(img_buf, img_padded.data, sizeof(float) * img_padded.rows * img_padded.cols);
 
     init_cuda();
-    auto kernelStartTime = high_resolution_clock::now();
-    harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
-    auto kernelEndTime = high_resolution_clock::now();    
+    printf("Initialized cuda\n");
+    const int iter = 10;
+    long int k_dur_sum = 0;
+    long int m1_dur_sum = 0;
+    long int m2_dur_sum = 0;
+    for(int i = 0; i < iter; i++) {
+        auto tuple = harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
+        k_dur_sum += std::get<0>(tuple);
+        m1_dur_sum += std::get<1>(tuple);
+        m2_dur_sum += std::get<2>(tuple);
+    }
     delete[] img_buf;
 
     //output_sobel_response(out_path, output_buf, img.rows, img.cols);
     output_cornerness_response(out_path, output_buf, img.rows, img.cols);
     delete[] output_buf;
 
-    auto overall_duration = duration_cast<microseconds>(kernelEndTime - kernelStartTime);
-    printf("Overall: %ld us\n", overall_duration.count());
+    printf("Avg Kernel Time: %ld us\n", k_dur_sum / iter);
+    printf("Avg Mem1 Time: %ld us\n", m1_dur_sum / iter);
+    printf("Avg Mem2 Time: %ld us\n", m2_dur_sum / iter);
+    printf("Avg Total Time: %ld us\n", (k_dur_sum + m1_dur_sum + m2_dur_sum) / iter);
+    free_cuda();
     return 0;
 }
