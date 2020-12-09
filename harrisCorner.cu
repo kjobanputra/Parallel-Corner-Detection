@@ -51,7 +51,28 @@ void gaussian_kernel(float *image, float *output, int height, int width, int phe
 }
 
 __global__
-void sobel_kernel(int height, int width, int pheight, int pwidth) {
+void sobel_kernel(int height, int width) {
+    const uint pY = blockIdx.y * blockDim.y + threadIdx.y;
+    const uint pX = blockIdx.x * blockDim.x + threadIdx.x;
+
+    const int dxl = (pX == 0) ? 0 : -1;
+    const int dyu = (pY == 0) ? 0 : -1;
+    const int dxr = (pX == width - 1) ? 0 : 1;
+    const int dyd = (pY == height - 1) ? 0 : 1;
+
+    if(pX < width && pY < height) {
+        float x_grad = 0.125f * image_data[(pY + dyu) * w + pX + dxl] + 0.25f * image_data[pY * w + pX + dxl] + 0.125f * image_data[(pY + dyd) * w + pX + dxl] +
+                    -0.125f * image_data[(pY + dyu) * w + pX + dxr] + -0.25f * image_data[pY * w + pX + dxr] + -0.125f * image_data[(pY + dyd) * w + pX + dxr];
+        float y_grad = 0.125f * image_data[(pY + dyu) * w + pX + dxl] + 0.25f * image_data[(pY + dyu) * w + pX] + 0.125f * image_data[(pY + dyu) * w + pX + dxr] + 
+                    -0.125f * image_data[(pY + dyd) * w + pX + dxl] + -0.25f * image_data[(pY + dyd) * w + ppX] + -0.125f * image_data[(pY + dyd) * w + pX + dxr];
+
+        image_x_grad[pY * width + pX] = x_grad;
+        image_y_grad[pY * width + pX] = y_grad;
+    }
+}
+
+__global__
+void sobel_kernel_padded(int height, int width, int pheight, int pwidth) {
     const uint pY = blockIdx.y * blockDim.y + threadIdx.y;
     const uint pX = blockIdx.x * blockDim.x + threadIdx.x;
     const uint ppY = pY + pheight;
@@ -143,6 +164,7 @@ void cornerness_kernel(int height, int width) {
         }
         const float det = gxx * gyy - gxy * gxy;
         const float trace = gxx + gyy;
+        //const float val = (det - K * trace * trace >= THRESH) ? 1.0f : 0.0f;
         image_data[pixelY * width + pixelX] = det - K * trace * trace;
     }
 }

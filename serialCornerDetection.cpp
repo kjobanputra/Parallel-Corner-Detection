@@ -22,19 +22,19 @@ const float gaussianKernel[3][3] = {
 };
 
 const float gx[3][3] = {
-    {-1, 0, 1},
-    {-2, 0, 2},
-    {-1, 0, 1}
+    {0.125, 0, -0.125},
+    {0.25, 0, -0.25},
+    {0.125, 0, -0.125}
 };
 
 const float gy[3][3] = {
-    {1, 2, 1},
+    {0.125, 0.25, 0.125},
     {0, 0, 0},
-    {-1, -2, -1}
+    {-0.125, -0.25, -0.125}
 };
 
 const float k = 0.04;
-const int thresholdVal = 100; // How sensitive it is to detecting corners
+const float thresholdVal = 0.4; // How sensitive it is to detecting corners
 const int convolutionWindowSize = 3;
 
 // Using Sobel Operator
@@ -129,11 +129,11 @@ void nonMaxSupression(Mat cMatrix, Mat &harris) {
 
 void cornerHarris(Mat &harris) {
   gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
-  gaussianConvolution(gaussianConvolvedMatrix);
+  //gaussianConvolution(gaussianConvolvedMatrix);
 
   for (int i = 1; i < gaussianConvolvedMatrix.rows-1; i++) {
     for (int j = 1; j < gaussianConvolvedMatrix.cols-1; j++) {
-      harris.at<float>(i, j) = c(i, j);
+      harris.at<float>(i-1, j-1) =  c(i, j);
     }
   }
 }
@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
   auto endTime = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
+  cout << harris << "\n";
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
