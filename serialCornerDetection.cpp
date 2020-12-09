@@ -128,11 +128,11 @@ void nonMaxSupression(Mat cMatrix, Mat &harris) {
 }
 
 void cornerHarris(Mat &harris) {
-  gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
+  //gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
   //gaussianConvolution(gaussianConvolvedMatrix);
 
-  for (int i = 1; i < gaussianConvolvedMatrix.rows-1; i++) {
-    for (int j = 1; j < gaussianConvolvedMatrix.cols-1; j++) {
+  for (int i = 1; i < srcGray.rows + 1; i++) {
+    for (int j = 1; j < srcGray.cols + 1; j++) {
       harris.at<float>(i-1, j-1) =  c(i, j);
     }
   }
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
   auto endTime = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
-  cout << harris << "\n";
+  //cout << harris << "\n";
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {

@@ -13,6 +13,7 @@
 #define BLOCK_WIDTH 32
 #define BLOCK_HEIGHT 32
 #define THREADS_PER_BLOCK (BLOCK_WIDTH * BLOCK_HEIGHT)
+#define TILE_WIDTH 30
 
 #define SHARED_PADDING (WINDOW_SIZE / 2) + (GRAD_SIZE / 2) 
 
@@ -31,7 +32,7 @@ using namespace std::chrono;
 __constant__ float *image_data;
 __constant__ float *image_x_grad;
 __constant__ float *image_y_grad;
-float *c_image_data;
+char *c_image_data;
 float *c_image_x_grad;
 float *c_image_y_grad;
 
@@ -51,23 +52,23 @@ void gaussian_kernel(float *image, float *output, int height, int width, int phe
 }
 
 __global__
-void sobel_kernel(int height, int width) {
+void sobel_kernel(int h, int w) {
     const uint pY = blockIdx.y * blockDim.y + threadIdx.y;
     const uint pX = blockIdx.x * blockDim.x + threadIdx.x;
 
     const int dxl = (pX == 0) ? 0 : -1;
     const int dyu = (pY == 0) ? 0 : -1;
-    const int dxr = (pX == width - 1) ? 0 : 1;
-    const int dyd = (pY == height - 1) ? 0 : 1;
+    const int dxr = (pX == w - 1) ? 0 : 1;
+    const int dyd = (pY == h - 1) ? 0 : 1;
 
-    if(pX < width && pY < height) {
+    if(pX < w && pY < h) {
         float x_grad = 0.125f * image_data[(pY + dyu) * w + pX + dxl] + 0.25f * image_data[pY * w + pX + dxl] + 0.125f * image_data[(pY + dyd) * w + pX + dxl] +
                     -0.125f * image_data[(pY + dyu) * w + pX + dxr] + -0.25f * image_data[pY * w + pX + dxr] + -0.125f * image_data[(pY + dyd) * w + pX + dxr];
         float y_grad = 0.125f * image_data[(pY + dyu) * w + pX + dxl] + 0.25f * image_data[(pY + dyu) * w + pX] + 0.125f * image_data[(pY + dyu) * w + pX + dxr] + 
-                    -0.125f * image_data[(pY + dyd) * w + pX + dxl] + -0.25f * image_data[(pY + dyd) * w + ppX] + -0.125f * image_data[(pY + dyd) * w + pX + dxr];
+                    -0.125f * image_data[(pY + dyd) * w + pX + dxl] + -0.25f * image_data[(pY + dyd) * w + pX] + -0.125f * image_data[(pY + dyd) * w + pX + dxr];
 
-        image_x_grad[pY * width + pX] = x_grad;
-        image_y_grad[pY * width + pX] = y_grad;
+        image_x_grad[pY * w + pX] = x_grad;
+        image_y_grad[pY * w + pX] = y_grad;
     }
 }
 
@@ -90,9 +91,29 @@ void sobel_kernel_padded(int height, int width, int pheight, int pwidth) {
     }
 }
 
+// Expects padding
 __global__
-void sobel_kernel_shared(int height, int width, int pheight, int pwidth) {
-    
+void sobel_kernel_shared(int height, int width) {
+    __shared__ float image_shared[THREADS_PER_BLOCK];
+    const uint pY = blockIdx.y * (TILE_WIDTH) + threadIdx.y;
+    const uint pX = blockIdx.x * (TILE_WIDTH) + threadIdx.x;
+    const uint ty = threadIdx.y;
+    const uint tx = threadIdx.x;
+
+    if(pX <= width && pY <= height) {
+        image_shared[threadIdx.y * BLOCK_WIDTH + threadIdx.x] = image_data[pY * (width + 2) + pX];
+    }
+    __syncthreads();
+
+    if(threadIdx.x > 0 && threadIdx.x < BLOCK_WIDTH - 1 && threadIdx.y > 0 && threadIdx.y < BLOCK_WIDTH - 1) {
+        float x_grad = 0.125f * image_shared[(ty - 1) * BLOCK_WIDTH + tx - 1] + 0.25f * image_shared[ty * BLOCK_WIDTH + tx - 1] + 0.125f * image_shared[(ty + 1) * BLOCK_WIDTH + tx - 1] +
+                    -0.125f * image_shared[(ty - 1) * BLOCK_WIDTH + tx + 1] + -0.25f * image_shared[ty * BLOCK_WIDTH + tx + 1] + -0.125f * image_shared[(ty + 1) * BLOCK_WIDTH + tx + 1];
+        float y_grad = 0.125f * image_shared[(ty - 1) * BLOCK_WIDTH + tx - 1] + 0.25f * image_shared[(ty - 1) * BLOCK_WIDTH + tx] + 0.125f * image_shared[(ty - 1) * BLOCK_WIDTH + tx + 1] + 
+                    -0.125f * image_shared[(ty + 1) * BLOCK_WIDTH + tx - 1] + -0.25f * image_shared[(ty + 1) * BLOCK_WIDTH + tx] + -0.125f * image_shared[(ty + 1) * BLOCK_WIDTH + tx + 1];
+
+        image_x_grad[pY * width + pX] = x_grad;
+        image_y_grad[pY * width + pX] = y_grad;
+    }
 }
 
 __global__
@@ -181,8 +202,8 @@ std::tuple<long int, long int, long int> harrisCornerDetectorStaged(float *pinpu
     const size_t padding = TOTAL_PADDING_SIZE;
 
     const int input_image_size = sizeof(float) * (height + 2 * padding) * (width + 2 * padding);
-    const int grad_image_width = width + 2 * (padding - GRAD_PADDING_SIZE);
-    const int grad_image_height = height + 2 * (padding - GRAD_PADDING_SIZE);
+    const int grad_image_width = width + 2 * padding;
+    const int grad_image_height = height + 2 * padding;
     const int output_image_size = sizeof(float) * height * width;
 
     // Copy input arrays to the GPU
@@ -195,7 +216,7 @@ std::tuple<long int, long int, long int> harrisCornerDetectorStaged(float *pinpu
     auto kernel_start_time = high_resolution_clock::now();
     //sobel_x_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
     //sobel_y_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
-    sobel_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width, GRAD_PADDING_SIZE, GRAD_PADDING_SIZE);
+    sobel_kernel<<<grid, threadBlock>>>(grad_image_height, grad_image_width);
     cudaDeviceSynchronize();
     cornerness_kernel<<<grid, threadBlock>>>(height, width);
     cudaDeviceSynchronize();

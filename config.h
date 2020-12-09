@@ -11,7 +11,7 @@
 // The constant used to scale corner responses
 #define K 0.04f
 #define THRESH 0.2f
-#define TOTAL_PADDING_SIZE (WINDOW_PADDING_SIZE + GRAD_PADDING_SIZE)
+#define TOTAL_PADDING_SIZE (WINDOW_PADDING_SIZE)
 #define PADDING_SIZE std::max(WINDOW_SIZE, GRAD_SIZE)
 
 #define MAX_IMAGE_HEIGHT 1440
