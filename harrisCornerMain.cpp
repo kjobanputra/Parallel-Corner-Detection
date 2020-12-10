@@ -2,6 +2,7 @@
 #include <opencv2/highgui.hpp>
 #include <string.h>
 #include <stdio.h>
+#include <iostream>
 #include <tuple>
 
 #include "CycleTimer.h"
@@ -18,6 +19,7 @@ using namespace std::chrono;
 
 void harrisCornerDetector(unsigned char *input, unsigned char *output, int height, int width);
 std::tuple<long int, long int, long int> harrisCornerDetectorStaged(float *pinput, float *output, int height, int width);
+void benchSobel(float *pinput, float *output_x, float *output_y, int width, int height, int mode);
 void printCudaInfo();
 void init_cuda();
 void free_cuda();
@@ -36,6 +38,77 @@ void output_cornerness_response(const char *file_path, float *buf, int height, i
     normalize(output, output, 0x00, 0xFF, NORM_MINMAX, CV_8UC1);
 
     imwrite(file_path, output);
+}
+
+void serialSobelY(Mat &image, Mat &output) {
+    Mat padded;
+    copyMakeBorder(image, padded, 1, 1, 1, 1, BORDER_REPLICATE);
+
+    const float kern[3][3] = {{-0.125, -0.25, -0.125},
+                         {0.0, 0.0, 0.0},
+                         {0.125, 0.25, 0.125}};
+
+    for(int i = 1; i <= image.rows; i++) {
+        for(int j = 1; j <= image.cols; j++) {
+            for(int k = -1; k <= 1; k++) {
+                for(int l = -1; l <= 1; l++) {
+                    output.at<float>(i-1, j-1) += padded.at<float>(i+k, j+l) * kern[k+1][l+1];
+                }
+            }
+        }
+    }
+}
+
+void serialSobelX(Mat &image, Mat &output) {
+    Mat padded;
+    copyMakeBorder(image, padded, 1, 1, 1, 1, BORDER_REPLICATE);
+
+    const float kern[3][3] = {{-0.125, 0.0, 0.125},
+                         {-0.25, 0.0, 0.25},
+                         {-0.125, 0.0, 0.125}};
+
+    for(int i = 1; i <= image.rows; i++) {
+        for(int j = 1; j <= image.cols; j++) {
+            for(int k = -1; k <= 1; k++) {
+                for(int l = -1; l <= 1; l++) {
+                    output.at<float>(i-1, j-1) += padded.at<float>(i+k, j+l) * kern[k+1][l+1];
+                }
+            }
+        }
+    }
+}
+
+// takes a non-padded image
+void verifySobel(Mat &image, float *grad_x, float *grad_y) {
+    Mat output_x = Mat::zeros(image.size(), CV_32FC1), output_y = Mat::zeros(image.size(), CV_32FC1);
+    Sobel(image, output_x, CV_32FC1, 1, 0, 3, 1.0, 0.0, BORDER_REPLICATE);
+    Sobel(image, output_y, CV_32FC1, 0, 1, 3, 1.0, 0.0, BORDER_REPLICATE);
+    //serialSobelX(image, output_x);
+    //serialSobelY(image, output_y);
+    output_x = output_x / 8.0;
+    output_y = output_y / 8.0;
+
+    //cout << output_x << "\n";
+
+    for(int i = 0; i < image.rows; i++) {
+        for(int j = 0; j < image.cols; j++) {
+            //printf("%f, ", grad_x[i * image.cols + j]);
+            
+            if(std::abs((output_x.at<float>(i, j) - grad_x[i * image.cols + j])) > 0.000001) {
+                printf("Error in xgrad at %d, %d\n", i, j);
+                printf("Expected val %f, actual val %f\n", output_x.at<float>(i, j), grad_x[i * image.cols + j]);
+                return;
+            }
+            if(std::abs((output_y.at<float>(i, j) - grad_y[i * image.cols + j])) > 0.000001) {
+                printf("Error in ygrad at %d, %d\n", i, j);
+                printf("Expected val %f, actual val %f\n", output_y.at<float>(i, j), grad_y[i * image.cols + j]);
+                return;
+            }
+        }
+        //printf("\n");
+    }
+
+    printf("Sobel results verified!\n");
 }
 
 int main(int argc, char **argv) {
@@ -60,7 +133,7 @@ int main(int argc, char **argv) {
 
     // Pad image according to the gradient and detection window sizes
     Mat img_padded;
-    const int border_size = TOTAL_PADDING_SIZE;
+    const int border_size = 0;
     printf("Padding size: %i\n", border_size);
     copyMakeBorder(img, img_padded, border_size, border_size, border_size, border_size, BORDER_REPLICATE);
 
@@ -70,26 +143,33 @@ int main(int argc, char **argv) {
 
     init_cuda();
     printf("Initialized cuda\n");
-    const int iter = 10;
-    long int k_dur_sum = 0;
-    long int m1_dur_sum = 0;
-    long int m2_dur_sum = 0;
-    for(int i = 0; i < iter; i++) {
-        auto tuple = harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
-        k_dur_sum += std::get<0>(tuple);
-        m1_dur_sum += std::get<1>(tuple);
-        m2_dur_sum += std::get<2>(tuple);
-    }
-    delete[] img_buf;
+    // const int iter = 10;
+    // long int k_dur_sum = 0;
+    // long int m1_dur_sum = 0;
+    // long int m2_dur_sum = 0;
+    // for(int i = 0; i < iter; i++) {
+    //     auto tuple = harrisCornerDetectorStaged(img_buf, output_buf, img.rows, img.cols);
+    //     k_dur_sum += std::get<0>(tuple);
+    //     m1_dur_sum += std::get<1>(tuple);
+    //     m2_dur_sum += std::get<2>(tuple);
+    // }
+    // delete[] img_buf;
 
-    //output_sobel_response(out_path, output_buf, img.rows, img.cols);
-    output_cornerness_response(out_path, output_buf, img.rows, img.cols);
-    delete[] output_buf;
+    // //output_sobel_response(out_path, output_buf, img.rows, img.cols);
+    // output_cornerness_response(out_path, output_buf, img.rows, img.cols);
+    // delete[] output_buf;
 
-    printf("Avg Kernel Time: %ld us\n", k_dur_sum / iter);
-    printf("Avg Mem1 Time: %ld us\n", m1_dur_sum / iter);
-    printf("Avg Mem2 Time: %ld us\n", m2_dur_sum / iter);
-    printf("Avg Total Time: %ld us\n", (k_dur_sum + m1_dur_sum + m2_dur_sum) / iter);
+    // printf("Avg Kernel Time: %ld us\n", k_dur_sum / iter);
+    // printf("Avg Mem1 Time: %ld us\n", m1_dur_sum / iter);
+    // printf("Avg Mem2 Time: %ld us\n", m2_dur_sum / iter);
+    // printf("Avg Total Time: %ld us\n", (k_dur_sum + m1_dur_sum + m2_dur_sum) / iter);
+
+    Mat out_x = Mat::zeros(img.size(), CV_32FC1);
+    Mat out_y = Mat::zeros(img.size(), CV_32FC1);
+
+    benchSobel(img_buf, (float *)out_x.data, (float *)out_y.data, img.rows, img.cols, 2);
+    verifySobel(img, (float *)out_x.data, (float *)out_y.data);
+    output_sobel_response(out_path, (float *)out_x.data, out_x.rows, out_x.cols);
     free_cuda();
     return 0;
 }
