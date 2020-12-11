@@ -92,7 +92,7 @@ void gaussianConvolution(Mat &output) {
   int halfWindow = convolutionWindowSize/2;
   float gaussianVal;
   float convolvedVal;
-#pragma omp parallel for reduction(convolvedVal: +) collapse(2)
+//#pragma omp parallel for reduction(convolvedVal: +) collapse(2)
   for (int i = 1; i < paddedSrcGray.rows-1; i++) {
     for (int j = 1; j < paddedSrcGray.cols-1; j++) {
       convolvedVal = 0;
@@ -137,6 +137,7 @@ void cornerHarris(Mat &harris) {
 #pragma omp parallel for collapse(2)
   for (int i = 1; i < srcGray.rows + 1; i++) {
     for (int j = 1; j < srcGray.cols + 1; j++) {
+      //printf("%d %d %d\n", i, j, omp_get_thread_num());
       harris.at<float>(i-1, j-1) =  c(i, j);
     }
   }
