@@ -11,7 +11,6 @@
 #define ARG_OUT 2
 #define ALPHA 3
 
-//TODO: potential seg fault in code
 using namespace cv;
 using namespace std;
 Mat srcGray, paddedSrcGray, gaussianConvolvedMatrix;
@@ -170,7 +169,6 @@ int main(int argc, char **argv) {
   cornerHarris(harris);
 
 
-  //cout << harris << "\n";
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
