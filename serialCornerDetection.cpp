@@ -9,8 +9,8 @@
 
 #define ARG_IMG 1
 #define ARG_OUT 2
+#define ALPHA 3
 
-//TODO: potential seg fault in code
 using namespace cv;
 using namespace std;
 Mat srcGray, paddedSrcGray, gaussianConvolvedMatrix;
@@ -145,13 +145,14 @@ void cornerHarris(Mat &harris) {
 }
 
 int main(int argc, char **argv) {
-  if(argc < 3) {
-    printf("Usage: ./harrisCorner image_path output_path\n");
+  if(argc < 4) {
+    printf("Usage: ./harrisCorner image_path output_path alpha\n");
     exit(-1);
   }
 
   const char *img_path = argv[ARG_IMG];
   const char *out_path = argv[ARG_OUT];
+  float alpha = atof(argv[ALPHA]);
   Mat src = imread(img_path);
 
   if (src.empty())
@@ -161,7 +162,7 @@ int main(int argc, char **argv) {
   }
 
   cvtColor(src, srcGray, COLOR_BGR2GRAY);
-  srcGray.convertTo(srcGray, CV_32FC1, 0.0115, 0);
+  srcGray.convertTo(srcGray, CV_32FC1, alpha, 0);
   if(srcGray.empty()) {
       printf("Image %s not found\n", img_path);
       exit(-1);
@@ -172,10 +173,8 @@ int main(int argc, char **argv) {
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
   auto startTime = std::chrono::high_resolution_clock::now();
   cornerHarris(harris);
-  auto endTime = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
-  //cout << harris << "\n";
+
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
@@ -184,6 +183,8 @@ int main(int argc, char **argv) {
       }
     }
   }
+  auto endTime = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
   imwrite(out_path, src);
   cout << "Serial: " << duration.count() << endl;
