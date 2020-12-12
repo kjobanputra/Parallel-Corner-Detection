@@ -187,6 +187,6 @@ int main(int argc, char **argv) {
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
   imwrite(out_path, src);
-  cout << "Serial: " << duration.count() << endl;
+  cout << "Serial on " << img_path << ": " << duration.count() << endl;
   return 0;
 }

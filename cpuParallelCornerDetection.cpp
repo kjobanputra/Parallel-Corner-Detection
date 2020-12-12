@@ -189,6 +189,6 @@ int main(int argc, char **argv) {
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
   imwrite(out_path, src);
-  cout << "CPU Parallel on " << numThreads << " threads: " << duration.count() << " microseconds"<< endl;
+  cout << "CPU Parallel on " << numThreads << " threads using " << img_path << ": " << duration.count() << " microseconds"<< endl;
   return 0;
 }
