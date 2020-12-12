@@ -105,23 +105,24 @@ void gaussianConvolution(Mat &output) {
 }
 
 void nonMaxSupression(Mat cMatrix, Mat &harris) {
-  for (int i = 0; i < cMatrix.rows; i++) {
-    for (int j = 0; j < cMatrix.cols; j++) {
+  for (int i = 1; i < cMatrix.rows-1; i++) {
+    for (int j = 1; j < cMatrix.cols-1; j++) {
       float maxVal = 0;
       int maxK = -1;
       int maxL = -1;
-      for (int k = i; k < min(i + convolutionWindowSize, cMatrix.rows); k++) {
-        for (int l = j; l < min(j + convolutionWindowSize, cMatrix.cols); l++) {
-          if (cMatrix.at<float>(k, l) > maxVal) {
-            maxVal = cMatrix.at<float>(k,l);
-            maxK = k;
-            maxL = l;
+      bool max = true;
+      for (int k = -1; k <= 1; k++) {
+        for (int l = -1; l <= 1; l++) {
+          if (cMatrix.at<float>(i + k, j + l) > cMatrix.at<float>(i, j)) {
+            harris.at<float>(i, j) = 0.0f;
+            max = false;
+            break;
           }
         }
       }
 
-      if (maxVal > 0) {
-        harris.at<float>(maxK, maxL) = cMatrix.at<float>(maxK, maxL);
+      if (max && cMatrix.at<float>(i, j) > 0) {
+        harris.at<float>(i, j) = cMatrix.at<float>(i, j);
       }
     }
   }
@@ -131,11 +132,16 @@ void cornerHarris(Mat &harris) {
   //gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
   //gaussianConvolution(gaussianConvolvedMatrix);
 
+  Mat cMatrix = Mat::zeros(harris.size(), CV_32FC1);
+
   for (int i = 1; i < srcGray.rows + 1; i++) {
     for (int j = 1; j < srcGray.cols + 1; j++) {
-      harris.at<float>(i-1, j-1) =  c(i, j);
+      cMatrix.at<float>(i-1, j-1) =  c(i, j);
     }
   }
+
+  // NMS 
+  nonMaxSupression(cMatrix, harris);
 }
 
 int main(int argc, char **argv) {
