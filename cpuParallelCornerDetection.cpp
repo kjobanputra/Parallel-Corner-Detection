@@ -9,7 +9,8 @@
 
 #define ARG_IMG 1
 #define ARG_OUT 2
-#define ALPHA 3
+#define P 3
+#define ALPHA 4
 
 using namespace cv;
 using namespace std;
@@ -130,11 +131,11 @@ void nonMaxSupression(Mat cMatrix, Mat &harris) {
   }
 }
 
-void cornerHarris(Mat &harris) {
+void cornerHarris(Mat &harris, int numThreads) {
   //gaussianConvolvedMatrix = Mat::zeros(srcGray.rows+2, srcGray.cols+2, CV_32FC1);
   //gaussianConvolution(gaussianConvolvedMatrix);
 
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2) num_threads(numThreads)
   for (int i = 1; i < srcGray.rows + 1; i++) {
     for (int j = 1; j < srcGray.cols + 1; j++) {
       //printf("%d %d %d\n", i, j, omp_get_thread_num());
@@ -151,6 +152,7 @@ int main(int argc, char **argv) {
 
   const char *img_path = argv[ARG_IMG];
   const char *out_path = argv[ARG_OUT];
+  int numThreads = atoi(argv[P]);
   float alpha = atof(argv[ALPHA]);
   Mat src = imread(img_path);
 
@@ -171,10 +173,10 @@ int main(int argc, char **argv) {
 
   Mat harris = Mat::zeros(src.size(), CV_32FC1);
   auto startTime = std::chrono::high_resolution_clock::now();
-  cornerHarris(harris);
+  cornerHarris(harris, numThreads);
 
 
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2) num_threads(numThreads)
   for (int i = 0; i < harris.rows; i++) {
     for (int j = 0; j < harris.cols; j++) {
       if (harris.at<float>(i,j) > thresholdVal) {
@@ -187,6 +189,6 @@ int main(int argc, char **argv) {
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
   imwrite(out_path, src);
-  cout << "CPU Parallel: " << duration.count() << " microseconds"<< endl;
+  cout << "CPU Parallel on " << numThreads << " threads: " << duration.count() << " microseconds"<< endl;
   return 0;
 }
