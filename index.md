@@ -1,6 +1,12 @@
 # Parallel Corner Detection
 
 ## Progress
+Week 6 (Final Week):
+  + After getting some initial numbers, we explored compression and streaming to hide memory latency in the GPU implementation. The rest of the time, we spent on getting final numbers, writing up the [final report](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/418_Final_Project_Paper.pdf), making the [slides](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Parallel%20Corner%20Detection%20Presentation.pdf), and finally, making a short [video](https://youtu.be/sHniXtd6qsc) going through the slides. 
+
+Week 5:
+  + We've researched what optimizations we need to make on the shared memory side and explored different approaches to make optimizations on the GPU implementation. We also implemented the shared memory ideas using OpenMP and optimizing the partial derivative calculation. Namely, we explored unrolling the kernel loop and utilizing shared memory. We started testing and getting numbers.
+
 Week 4:
   + We implemented the last step in the algorithm. There are further serial optimizations that we are considering to implement to compare the best possible serial version as well as the best possible parallel version. You can see results in the following link: [Midpoint Results](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Results%20-%20Midpoint.pdf). As you can see, the serial version seems to be outperforming the parallel version that we implemented in CUDA. As expected, the main bottleneck is the memory allocation as well as the copying of memory to and from the GPU. We also wrote up the following checkpoint report, in which we detail our future work in the coming weeks: [Checkpoint Report](https://github.com/kjobanputra/Parallel-Corner-Detection/blob/gh-pages/Checkpoint%20report.pdf). 
 
@@ -34,6 +40,4 @@ Week 6:
     + Kunal: Implement OpenMP version
     + Ryan: Test our how implementation translates to an embedded device
   + (12/11 - 12/14):
-    + Kunal, Ryan: Prepare for final presentation and demo
-    + Kunal, Ryan: If time permits, work on homography estimation
-
+    + Kunal, Ryan: Prepare for final paper, presentation, and demo
